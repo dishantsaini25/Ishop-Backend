@@ -1,4 +1,4 @@
-const AdminModel = require("../models/Admin.model");
+const AdminModel = require("../models/admin.model");
 const logActivity = require("../utils/logActivity");
 const { successResponse, serverError_Response, notFound_Response, createdResponse, updatedResponse, deleteResponse } = require("../utils/response");
 

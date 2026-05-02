@@ -4,7 +4,7 @@ const CartModel = require("../models/cart.model");
 const Razorpay = require('razorpay');
 const crypto = require("crypto");
 const Notification = require("../models/Notification");
-const Admin = require("../models/Admin.model");
+const Admin = require("../models/admin.model");
 
 var instance = new Razorpay({ 
     key_id: process.env.RAZORPAY_KEY_ID, 
