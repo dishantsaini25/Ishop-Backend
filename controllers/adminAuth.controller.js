@@ -1,4 +1,4 @@
-const AdminModel = require("../models/Admin.model");
+const AdminModel = require("../models/admin.model");
 const jwt = require("jsonwebtoken");
 const logActivity = require("../utils/logActivity"); // ✅ Add this line
 

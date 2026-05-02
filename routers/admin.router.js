@@ -1,5 +1,5 @@
 const router = require("express").Router();
-const AdminModel = require("../models/Admin.model");
+const AdminModel = require("../models/admin.model");
 const { adminAuth } = require("../middleware/adminAuth");
 const { checkPermission } = require("../middleware/permissions");
 const logActivity = require("../utils/logActivity");
