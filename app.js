@@ -14,22 +14,20 @@ const server = express();
 
 // ==================== SECURITY MIDDLEWARE ====================
 
-// Security headers
 server.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow images to be served cross-origin
-  contentSecurityPolicy: false, // Disable CSP to avoid breaking frontend assets
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  contentSecurityPolicy: false,
 }));
 
-// Rate limiting - general API
+// Rate limiting
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Too many requests, please try again later." },
 });
 
-// Stricter rate limit for auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
@@ -45,17 +43,24 @@ server.use(apiLimiter);
 
 // ==================== CORS ====================
 
-const allowedOrigins = [
+// Build allowed origins list — strip trailing slashes for reliable matching
+const rawOrigins = [
   "http://localhost:3000",
+  "http://localhost:3001",
   process.env.FRONTEND_URL,
-].filter(Boolean);
+].filter(Boolean).map(o => o.replace(/\/$/, ''));
 
 server.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Postman, server-side fetch)
+    // No origin = server-to-server (Vercel SSR, curl, Postman) — always allow
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error(`CORS blocked: ${origin}`));
+
+    const normalised = origin.replace(/\/$/, '');
+    if (rawOrigins.includes(normalised)) return callback(null, true);
+
+    // Unknown origin — reject with 403
+    console.warn(`CORS blocked origin: ${origin}`);
+    return callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -98,7 +103,7 @@ const httpServer = http.createServer(server);
 
 const io = socketIo(httpServer, {
   cors: {
-    origin: allowedOrigins,
+    origin: rawOrigins,
     credentials: true,
   }
 });
@@ -139,11 +144,10 @@ server.set('sendAdminNotification', sendAdminNotification);
 mongoose.connect(process.env.DATABASE_URL).then(() => {
   console.log("Connected to MongoDB");
   httpServer.listen(process.env.PORT || 5000, () => {
-    console.log(`Server is running on port ${process.env.PORT || 5000}`);
-    console.log('Socket.io is ready for real-time notifications');
-    console.log('Allowed CORS origins:', allowedOrigins);
+    console.log(`Server running on port ${process.env.PORT || 5000}`);
+    console.log('Allowed CORS origins:', rawOrigins);
   });
 }).catch((err) => {
-  console.log("Error connecting to MongoDB", err);
+  console.log("Error connecting to MongoDB:", err);
   process.exit(1);
 });
