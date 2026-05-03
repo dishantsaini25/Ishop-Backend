@@ -35,8 +35,9 @@ const adminLogin = async (req, res) => {
         res.cookie("admin_token", token, {
             httpOnly: true,
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "lax",
-            secure: process.env.NODE_ENV === 'production'
+            sameSite: process.env.NODE_ENV === 'production' ? "none" : "lax",
+            secure: process.env.NODE_ENV === 'production',
+            path: '/'
         });
 
         // ✅ Log activity
@@ -69,7 +70,8 @@ const adminLogout = async (req, res) => {
     res.clearCookie("admin_token", {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax'
+        sameSite: process.env.NODE_ENV === 'production' ? "none" : "lax",
+        path: '/'
     });
     res.json({ success: true, message: "Logged out" });
 };

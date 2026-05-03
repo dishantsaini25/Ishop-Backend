@@ -134,7 +134,7 @@ const getData = async (req, res) => {
 
     return successResponse(res, "Brand Found", {
       brand: brandData,
-      imageBaseUrl: "http://localhost:5000/images/brand/"
+      imageBaseUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/images/brand/`
     });
 
   } catch (error) {

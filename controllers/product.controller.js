@@ -314,7 +314,7 @@ const getData = async (req, res) => {
             currentPage: query.slug ? 1 : page,
             totalPages: query.slug ? 1 : Math.ceil(total / perPage),
             maxPrice,
-            imageBaseUrl: "http://localhost:5000/images/product/"
+            imageBaseUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/images/product/`
         });
 
     } catch (error) {

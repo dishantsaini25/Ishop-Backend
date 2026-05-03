@@ -74,7 +74,7 @@ const getData = async (req, res) => {
         }
         return successResponse(res, "category found", {
             category: categoryData,
-            imageBaseUrl: "http://localhost:5000/images/category/"
+            imageBaseUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/images/category/`
         });
 
     } catch (error) {
