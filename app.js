@@ -7,7 +7,6 @@ const http = require('http');
 const socketIo = require('socket.io');
 const jwt = require('jsonwebtoken');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const notificationRouter = require('./routers/notification.router');
 
 const server = express();
@@ -19,34 +18,21 @@ server.use(helmet({
   contentSecurityPolicy: false,
 }));
 
-// Rate limiting
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: "Too many requests, please try again later." },
-});
+// Rate limiting disabled
+// const apiLimiter = ...
+// const authLimiter = ...
 
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 50,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: { success: false, message: "Too many login attempts, please try again later." },
-});
-
-server.use('/user/login', authLimiter);
-server.use('/user/register', authLimiter);
-server.use('/admin/login', authLimiter);
-server.use(apiLimiter);
+// Rate limiting removed
+// server.use('/user/login', authLimiter);
+// server.use('/user/register', authLimiter);
+// server.use('/admin/login', authLimiter);
+// server.use(apiLimiter);
 
 // ==================== CORS ====================
 
 // Build allowed origins list — strip trailing slashes for reliable matching
 const rawOrigins = [
   "http://localhost:3000",
-  "http://localhost:3001",
   "http://localhost:3001",
   process.env.FRONTEND_URL,
 ].filter(Boolean).map(o => o.replace(/\/$/, ''));
@@ -165,7 +151,7 @@ mongoose.connect(process.env.DATABASE_URL).then(() => {
   console.log("Connected to MongoDB");
   httpServer.listen(process.env.PORT || 5000, () => {
     console.log(`Server running on port ${process.env.PORT || 5000}`);
-    console.log('Allowed CORS origins:', rawOrigins);
+    
   });
 }).catch((err) => {
   console.log("Error connecting to MongoDB:", err);
