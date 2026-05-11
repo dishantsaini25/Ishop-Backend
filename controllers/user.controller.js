@@ -42,17 +42,26 @@ const register = async (req, res) => {
         
         console.log('Sending OTP to:', email);
         
-        // Send email async - don't block the response
-        // User will get OTP shortly, can resend if needed
-        sendOtpMail(email, otp, "Your OTP Code - Verify Your Email")
-            .then(mailResponse => {
-                console.log('Mail response for', email, ':', mailResponse);
-            })
-            .catch(err => {
-                console.error('Mail error for', email, ':', err.message);
-            });
+        // Send email with timeout protection
+        const mailResponse = await Promise.race([
+            sendOtpMail(email, otp, "Your OTP Code - Verify Your Email"),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Email timeout')), 20000))
+        ]).catch(err => {
+            console.error('Mail error:', err.message);
+            return 'Email sending failed: ' + err.message;
+        });
 
-        console.log('✓ Registration successful for:', email);
+        if (mailResponse.includes("failed") || mailResponse.includes("timeout")) {
+            console.error('OTP email failed for:', email, mailResponse);
+            // User is saved, they can use resend OTP
+            return res.status(200).json({
+                success: true,
+                message: "Account created! OTP email is being sent. If not received, use Resend OTP.",
+                emailFailed: true
+            });
+        }
+
+        console.log('✓ Registration successful, OTP sent to:', email);
         return createdResponse(res, "Registration successful! OTP sent to your email.", newUser);
     } catch (error) {
         console.error('Registration error:', error);
