@@ -16,6 +16,11 @@ const adminLogin = async (req, res) => {
     try {
         const { email, password } = req.body;
 
+        console.log('=== ADMIN LOGIN REQUEST ===');
+        console.log('Email:', email);
+        console.log('Origin:', req.headers.origin);
+        console.log('NODE_ENV:', process.env.NODE_ENV);
+
         const admin = await AdminModel.findOne({ email });
         if (!admin) {
             return res.status(401).json({ success: false, message: "Invalid credentials" });
@@ -32,16 +37,24 @@ const adminLogin = async (req, res) => {
 
         const token = generateToken(admin);
 
-        res.cookie("admin_token", token, {
+        const isProduction = process.env.NODE_ENV === 'production';
+
+        const cookieOptions = {
             httpOnly: true,
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: process.env.NODE_ENV === 'production' ? "none" : "lax",
-            secure: process.env.NODE_ENV === 'production',
+            sameSite: isProduction ? "none" : "lax",
+            secure: isProduction,
             path: '/'
-        });
+        };
+
+        console.log('Setting admin cookie with options:', cookieOptions);
+
+        res.cookie("admin_token", token, cookieOptions);
 
         // ✅ Log activity
         await logActivity(req, 'LOGIN', { email: admin.email });
+
+        console.log('✓ Admin login successful for:', email);
 
         res.json({
             success: true,
@@ -50,12 +63,13 @@ const adminLogin = async (req, res) => {
                 id: admin._id,
                 name: admin.name,
                 email: admin.email,
-                role: admin.role
+                role: admin.role,
+                token: token // Also send token in response for debugging
             }
         });
 
     } catch (err) {
-        console.error("Login Error:", err);
+        console.error("Admin Login Error:", err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -67,12 +81,16 @@ const adminLogout = async (req, res) => {
         await logActivity(req, 'LOGOUT', { email: req.admin.email });
     }
     
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     res.clearCookie("admin_token", {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? "none" : "lax",
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
         path: '/'
     });
+    
+    console.log('✓ Admin logged out successfully');
     res.json({ success: true, message: "Logged out" });
 };
 

@@ -50,16 +50,26 @@ const rawOrigins = [
   process.env.FRONTEND_URL,
 ].filter(Boolean).map(o => o.replace(/\/$/, ''));
 
+console.log('Allowed CORS origins:', rawOrigins);
+
 server.use(cors({
   origin: (origin, callback) => {
     // No origin = server-to-server (Vercel SSR, curl, Postman) — always allow
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('No origin header - allowing (SSR/server-to-server)');
+      return callback(null, true);
+    }
 
     const normalised = origin.replace(/\/$/, '');
-    if (rawOrigins.includes(normalised)) return callback(null, true);
+    console.log(`Checking origin: ${origin} (normalized: ${normalised})`);
+    
+    if (rawOrigins.includes(normalised)) {
+      console.log(`✓ Origin allowed: ${origin}`);
+      return callback(null, true);
+    }
 
     // Unknown origin — reject with 403
-    console.warn(`CORS blocked origin: ${origin}`);
+    console.warn(`✗ CORS blocked origin: ${origin}`);
     return callback(new Error(`CORS blocked: ${origin}`));
   },
   credentials: true,

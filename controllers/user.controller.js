@@ -10,6 +10,11 @@ const UserModel = require("../models/user.model");
 const register = async (req, res) => {
     try {
         const { name, email, password } = req.body;
+        
+        console.log('=== REGISTER REQUEST ===');
+        console.log('Email:', email);
+        console.log('Origin:', req.headers.origin);
+        
         if (!name || !email || !password) return allFieldsResponse(res);
         
         const user = await UserModel.findOne({ email });
@@ -35,14 +40,17 @@ const register = async (req, res) => {
             });
         }
         
+        console.log('Sending OTP to:', email);
         const mailResponse = await sendOtpMail(email, otp, "Your OTP Code - Verify Your Email");
         if (mailResponse.includes("failed")) {
+            console.error('Failed to send OTP email:', mailResponse);
             return serverError_Response(res, mailResponse);
         }
 
+        console.log('✓ Registration successful, OTP sent to:', email);
         return createdResponse(res, newUser);
     } catch (error) {
-        console.log(error);
+        console.error('Registration error:', error);
         return serverError_Response(res);
     }
 };
@@ -50,6 +58,12 @@ const register = async (req, res) => {
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
+        
+        console.log('=== LOGIN REQUEST ===');
+        console.log('Email:', email);
+        console.log('Origin:', req.headers.origin);
+        console.log('NODE_ENV:', process.env.NODE_ENV);
+        
         if (!email || !password) return allFieldsResponse(res);
         
         const user = await UserModel.findOne({ email });
@@ -65,17 +79,31 @@ const login = async (req, res) => {
             email: user.email
         }, process.env.SECRET_KEY, { expiresIn: '7d' });
         
-        res.cookie("user_token", token, {
-            httpOnly: true,
-            maxAge: 7 * 24 * 60 * 60 * 1000,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? "none" : "lax",
-            path: '/'
-        });
+        const isProduction = process.env.NODE_ENV === 'production';
         
-        return successResponse(res, "Login successful", { name: user.name, email: user.email, id: user._id });
+        const cookieOptions = {
+            httpOnly: true,
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
+            path: '/',
+            domain: isProduction ? undefined : undefined // Let browser handle domain
+        };
+        
+        console.log('Setting cookie with options:', cookieOptions);
+        
+        res.cookie("user_token", token, cookieOptions);
+        
+        console.log('✓ Login successful for:', email);
+        
+        return successResponse(res, "Login successful", { 
+            name: user.name, 
+            email: user.email, 
+            id: user._id,
+            token: token // Also send token in response for debugging
+        });
     } catch (error) {
-        console.log(error);
+        console.error('Login error:', error);
         return serverError_Response(res);
     }
 };
@@ -424,14 +452,19 @@ const getCurrentUser = async (req, res) => {
 
 const logout = async (req, res) => {
     try {
+        const isProduction = process.env.NODE_ENV === 'production';
+        
         res.clearCookie("user_token", {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? "none" : "lax",
+            secure: isProduction,
+            sameSite: isProduction ? "none" : "lax",
             path: '/'
         });
+        
+        console.log('✓ User logged out successfully');
         return successResponse(res, "Logout successful");
     } catch (error) {
+        console.error('Logout error:', error);
         return serverError_Response(res);
     }
 };
