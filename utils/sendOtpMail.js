@@ -12,7 +12,7 @@ const sendOtpMail = async (toEmail, otp, subject = "Your OTP Code - Verify Your 
 
     const result = await client.transactionalEmails.sendTransacEmail({
       subject: subject,
-      sender: { name: "iShop", email: "noreply@ishop.com" },
+      sender: { name: "iShop", email: "sainidishu2002@gmail.com" },
       to: [{ email: toEmail }],
       htmlContent: `
       <div style="background:#f4f4f4;padding:30px 0;font-family:Arial,sans-serif;">
