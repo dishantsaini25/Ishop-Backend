@@ -11,10 +11,6 @@ const register = async (req, res) => {
     try {
         const { name, email, password } = req.body;
         
-        console.log('=== REGISTER REQUEST ===');
-        console.log('Email:', email);
-        console.log('Origin:', req.headers.origin);
-        
         if (!name || !email || !password) return allFieldsResponse(res);
         
         const user = await UserModel.findOne({ email });
@@ -40,29 +36,21 @@ const register = async (req, res) => {
             });
         }
         
-        console.log('Sending OTP to:', email);
-        
-        // Send email with timeout protection
-        const mailResponse = await Promise.race([
-            sendOtpMail(email, otp, "Your OTP Code - Verify Your Email"),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('Email timeout')), 20000))
-        ]).catch(err => {
-            console.error('Mail error:', err.message);
-            return 'Email sending failed: ' + err.message;
+        // Send email in background - do NOT await, respond immediately
+        setImmediate(() => {
+            sendOtpMail(email, otp, "Your OTP Code - Verify Your Email")
+                .then(r => console.log('OTP mail sent to', email, ':', r))
+                .catch(e => console.error('OTP mail failed for', email, ':', e.message));
         });
 
-        if (mailResponse.includes("failed") || mailResponse.includes("timeout")) {
-            console.error('OTP email failed for:', email, mailResponse);
-            // User is saved, they can use resend OTP
-            return res.status(200).json({
-                success: true,
-                message: "Account created! OTP email is being sent. If not received, use Resend OTP.",
-                emailFailed: true
-            });
-        }
+        console.log('✓ Registration saved, OTP:', otp, 'for:', email);
+        
+        // Return success immediately - email sends in background
+        return res.status(200).json({
+            success: true,
+            message: "Registration successful! OTP sent to your email.",
+        });
 
-        console.log('✓ Registration successful, OTP sent to:', email);
-        return createdResponse(res, "Registration successful! OTP sent to your email.", newUser);
     } catch (error) {
         console.error('Registration error:', error);
         return serverError_Response(res);
@@ -162,10 +150,12 @@ const resetOtp = async (req, res) => {
         user.otpExpiry = otp_expire;
         await user.save();
         
-        // Send async - don't block
-        sendOtpMail(email, otp, "Your OTP Code - Verify Your Email")
-            .then(r => console.log('Resend OTP mail:', r))
-            .catch(e => console.error('Resend OTP mail error:', e.message));
+        // Send in background
+        setImmediate(() => {
+            sendOtpMail(email, otp, "Your OTP Code - Verify Your Email")
+                .then(r => console.log('Resend OTP mail:', r))
+                .catch(e => console.error('Resend OTP mail error:', e.message));
+        });
         
         return successResponse(res, "OTP sent successfully");
     } catch (error) {
@@ -211,10 +201,12 @@ const sendPasswordResetOtp = async (req, res) => {
         user.resetPasswordOtpExpiry = otp_expire;
         await user.save();
         
-        // Send async - don't block
-        sendOtpMail(email, otp, "Password Reset OTP - Ishop")
-            .then(r => console.log('Reset OTP mail:', r))
-            .catch(e => console.error('Reset OTP mail error:', e.message));
+        // Send in background
+        setImmediate(() => {
+            sendOtpMail(email, otp, "Password Reset OTP - Ishop")
+                .then(r => console.log('Reset OTP mail:', r))
+                .catch(e => console.error('Reset OTP mail error:', e.message));
+        });
         
         return res.status(200).json({
             success: true,
