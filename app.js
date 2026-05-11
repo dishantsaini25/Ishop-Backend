@@ -52,7 +52,7 @@ const rawOrigins = [
 
 console.log('Allowed CORS origins:', rawOrigins);
 
-server.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
     // No origin = server-to-server (Vercel SSR, curl, Postman) — always allow
     if (!origin) {
@@ -74,8 +74,13 @@ server.use(cors({
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+  allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+  exposedHeaders: ["Set-Cookie"],
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+};
+
+server.use(cors(corsOptions));
 
 // ==================== BODY PARSING ====================
 server.use(express.json({ limit: '10mb' }));
