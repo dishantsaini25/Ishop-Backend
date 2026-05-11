@@ -47,40 +47,45 @@ server.use(apiLimiter);
 const rawOrigins = [
   "http://localhost:3000",
   "http://localhost:3001",
+  "http://localhost:3001",
   process.env.FRONTEND_URL,
 ].filter(Boolean).map(o => o.replace(/\/$/, ''));
 
 console.log('Allowed CORS origins:', rawOrigins);
 
-const corsOptions = {
-  origin: (origin, callback) => {
-    // No origin = server-to-server (Vercel SSR, curl, Postman) — always allow
-    if (!origin) {
-      console.log('No origin header - allowing (SSR/server-to-server)');
-      return callback(null, true);
-    }
-
-    const normalised = origin.replace(/\/$/, '');
-    console.log(`Checking origin: ${origin} (normalized: ${normalised})`);
+// Simple CORS configuration that works
+server.use((req, res, next) => {
+  const origin = req.headers.origin;
+  
+  // Allow requests with no origin (like mobile apps, curl, Postman, SSR)
+  if (!origin) {
+    res.header('Access-Control-Allow-Credentials', 'true');
+    return next();
+  }
+  
+  const normalizedOrigin = origin.replace(/\/$/, '');
+  
+  // Check if origin is allowed
+  if (rawOrigins.includes(normalizedOrigin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Credentials', 'true');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Cookie');
+    res.header('Access-Control-Expose-Headers', 'Set-Cookie');
     
-    if (rawOrigins.includes(normalised)) {
-      console.log(`✓ Origin allowed: ${origin}`);
-      return callback(null, true);
+    console.log(`✓ CORS: Origin allowed: ${origin}`);
+    
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+      console.log(`✓ CORS: Preflight request handled for ${req.path}`);
+      return res.status(204).end();
     }
-
-    // Unknown origin — reject with 403
-    console.warn(`✗ CORS blocked origin: ${origin}`);
-    return callback(new Error(`CORS blocked: ${origin}`));
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
-  exposedHeaders: ["Set-Cookie"],
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-};
-
-server.use(cors(corsOptions));
+  } else {
+    console.warn(`✗ CORS: Origin blocked: ${origin}`);
+  }
+  
+  next();
+});
 
 // ==================== BODY PARSING ====================
 server.use(express.json({ limit: '10mb' }));
