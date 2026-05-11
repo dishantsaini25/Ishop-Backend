@@ -41,14 +41,19 @@ const register = async (req, res) => {
         }
         
         console.log('Sending OTP to:', email);
-        const mailResponse = await sendOtpMail(email, otp, "Your OTP Code - Verify Your Email");
-        if (mailResponse.includes("failed")) {
-            console.error('Failed to send OTP email:', mailResponse);
-            return serverError_Response(res, mailResponse);
-        }
+        
+        // Send email async - don't block the response
+        // User will get OTP shortly, can resend if needed
+        sendOtpMail(email, otp, "Your OTP Code - Verify Your Email")
+            .then(mailResponse => {
+                console.log('Mail response for', email, ':', mailResponse);
+            })
+            .catch(err => {
+                console.error('Mail error for', email, ':', err.message);
+            });
 
-        console.log('✓ Registration successful, OTP sent to:', email);
-        return createdResponse(res, newUser);
+        console.log('✓ Registration successful for:', email);
+        return createdResponse(res, "Registration successful! OTP sent to your email.", newUser);
     } catch (error) {
         console.error('Registration error:', error);
         return serverError_Response(res);
@@ -148,10 +153,11 @@ const resetOtp = async (req, res) => {
         user.otpExpiry = otp_expire;
         await user.save();
         
-        const mailResponse = await sendOtpMail(email, otp, "Your OTP Code - Verify Your Email");
-        if (mailResponse.includes("failed")) {
-            return serverError_Response(res, mailResponse);
-        }
+        // Send async - don't block
+        sendOtpMail(email, otp, "Your OTP Code - Verify Your Email")
+            .then(r => console.log('Resend OTP mail:', r))
+            .catch(e => console.error('Resend OTP mail error:', e.message));
+        
         return successResponse(res, "OTP sent successfully");
     } catch (error) {
         console.log(error);
@@ -196,14 +202,10 @@ const sendPasswordResetOtp = async (req, res) => {
         user.resetPasswordOtpExpiry = otp_expire;
         await user.save();
         
-        const mailResponse = await sendOtpMail(email, otp, "Password Reset OTP - Ishop");
-        
-        if (mailResponse.includes("failed")) {
-            return res.status(500).json({
-                success: false,
-                message: "Failed to send OTP email"
-            });
-        }
+        // Send async - don't block
+        sendOtpMail(email, otp, "Password Reset OTP - Ishop")
+            .then(r => console.log('Reset OTP mail:', r))
+            .catch(e => console.error('Reset OTP mail error:', e.message));
         
         return res.status(200).json({
             success: true,
