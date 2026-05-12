@@ -4,8 +4,26 @@ const ColorModel = require("../models/color.model");
 const categoryModel = require("../models/category.model");
 const { createUniqueName } = require("../utils/helper");
 const fs = require("fs");
+const path = require("path");
 const productModel = require("../models/product.model");
 const BrandModel = require("../models/brand.model");
+
+// Ensure upload directories exist on startup
+const ensureDirs = () => {
+    const dirs = [
+        "./public/images/product/main",
+        "./public/images/product/other",
+        "./public/images/category",
+        "./public/images/brand",
+    ];
+    dirs.forEach(dir => {
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+            console.log("Created directory:", dir);
+        }
+    });
+};
+ensureDirs();
 
 const create = async (req, res) => {
     try {
@@ -325,37 +343,40 @@ const getData = async (req, res) => {
 
 const add_images = async (req, res) => {
     try {
+        // Check if files were uploaded
+        if (!req.files || !req.files.other_images) {
+            return res.status(400).json({
+                success: false,
+                message: "No images uploaded. Please select at least one image."
+            });
+        }
+
         const images = req.files.other_images;
         const id = req.params.id;
-        const product = await ProductModel.findById({ _id: id });
+        const product = await ProductModel.findById(id);
         if (!product) return notFound_Response(res);
-        const other_images = product.other_images;
-        if (Array.isArray(images) == true) {
-            await Promise.all(
-                images.map(async (img) => {
-                    const image_name = createUniqueName(img.name)
-                    const destination = "./public/images/product/other/" + image_name;
-                    await img.mv(destination);
-                    other_images.push(image_name);
-                }))
 
+        const other_images = [...product.other_images];
 
-        }
-        else {
-            const image_name = createUniqueName(images.name)
+        const saveImage = async (img) => {
+            const image_name = createUniqueName(img.name);
             const destination = "./public/images/product/other/" + image_name;
-            await images.mv(destination);
+            await img.mv(destination);
             other_images.push(image_name);
+        };
 
+        if (Array.isArray(images)) {
+            await Promise.all(images.map(saveImage));
+        } else {
+            await saveImage(images);
         }
 
-
-        product.other_images = other_images
+        product.other_images = other_images;
         await product.save();
-        return successResponse(res, "Images added")
+        return successResponse(res, "Images added successfully");
 
     } catch (error) {
-        console.log(error);
+        console.error("Add images error:", error);
         return serverError_Response(res);
     }
 };
