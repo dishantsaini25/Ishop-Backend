@@ -75,11 +75,13 @@ server.use((req, res, next) => {
 
 // ==================== BODY PARSING ====================
 const fileUpload = require('express-fileupload');
+// fileUpload MUST come before express.json so multipart is parsed first
 server.use(fileUpload({
   createParentPath: true,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
-  abortOnLimit: true,
+  abortOnLimit: false,
   useTempFiles: false,
+  parseNested: true,
 }));
 server.use(express.json({ limit: '10mb' }));
 server.use(express.urlencoded({ extended: true, limit: '10mb' }));
