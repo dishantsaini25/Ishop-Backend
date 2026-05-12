@@ -74,6 +74,13 @@ server.use((req, res, next) => {
 });
 
 // ==================== BODY PARSING ====================
+const fileUpload = require('express-fileupload');
+server.use(fileUpload({
+  createParentPath: true,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  abortOnLimit: true,
+  useTempFiles: false,
+}));
 server.use(express.json({ limit: '10mb' }));
 server.use(express.urlencoded({ extended: true, limit: '10mb' }));
 server.use(express.static("public"));
