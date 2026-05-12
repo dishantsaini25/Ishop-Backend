@@ -343,8 +343,15 @@ const getData = async (req, res) => {
 
 const add_images = async (req, res) => {
     try {
+        console.log("=== ADD IMAGES REQUEST ===");
+        console.log("Product ID:", req.params.id);
+        console.log("Has files:", !!req.files);
+        console.log("Files keys:", req.files ? Object.keys(req.files) : 'none');
+        console.log("Content-Type:", req.headers['content-type']);
+
         // Check if files were uploaded
         if (!req.files || !req.files.other_images) {
+            console.log("No files found in request");
             return res.status(400).json({
                 success: false,
                 message: "No images uploaded. Please select at least one image."
