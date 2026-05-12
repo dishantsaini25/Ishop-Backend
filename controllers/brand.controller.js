@@ -11,11 +11,18 @@ const productModel = require("../models/product.model");
 const categoryModel = require("../models/category.model");
 const { uploadToCloudinary } = require("../utils/cloudinary");
 
-// Upload helper - Cloudinary in production, local in dev
+// Upload helper - Cloudinary if configured, local fallback
 const uploadImage = async (file, folder = 'ishop/brands') => {
-  if (process.env.CLOUDINARY_CLOUD_NAME) {
-    const result = await uploadToCloudinary(file.data, folder);
-    return result.url;
+  const hasCloudinary = process.env.CLOUDINARY_CLOUD_NAME && 
+                        process.env.CLOUDINARY_API_KEY && 
+                        process.env.CLOUDINARY_CLOUD_NAME !== 'Ishop';
+  if (hasCloudinary) {
+    try {
+      const result = await uploadToCloudinary(file.data, folder);
+      return result.url;
+    } catch (e) {
+      console.error('Cloudinary failed, using local:', e.message);
+    }
   }
   const image_name = createUniqueName(file.name);
   await file.mv('./public/images/brand/' + image_name);

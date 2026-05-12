@@ -25,21 +25,40 @@ const ensureDirs = () => {
 };
 ensureDirs();
 
-// Helper: upload image - uses Cloudinary in production, local in dev
+// Helper: upload image - uses Cloudinary if configured, local otherwise
 const uploadImage = async (file, folder) => {
-    const isProduction = process.env.NODE_ENV === 'production';
+    const hasCloudinary = process.env.CLOUDINARY_CLOUD_NAME && 
+                          process.env.CLOUDINARY_API_KEY && 
+                          process.env.CLOUDINARY_API_SECRET &&
+                          process.env.CLOUDINARY_CLOUD_NAME !== 'Ishop'; // guard against wrong value
     
-    if (isProduction || process.env.CLOUDINARY_CLOUD_NAME) {
-        // Upload to Cloudinary
-        const result = await uploadToCloudinary(file.data, folder);
-        return { name: result.url, isCloudinary: true, public_id: result.public_id };
-    } else {
-        // Save locally
-        const image_name = createUniqueName(file.name);
-        const localFolder = folder.includes('main') ? './public/images/product/main/' : './public/images/product/other/';
-        await file.mv(localFolder + image_name);
-        return { name: image_name, isCloudinary: false };
+    if (hasCloudinary) {
+        try {
+            const result = await uploadToCloudinary(file.data, folder);
+            console.log('✓ Uploaded to Cloudinary:', result.url);
+            return { name: result.url, isCloudinary: true };
+        } catch (cloudErr) {
+            console.error('Cloudinary upload failed, falling back to local:', cloudErr.message);
+        }
     }
+    
+    // Local storage fallback
+    const image_name = createUniqueName(file.name);
+    const isMain = folder.includes('main');
+    const isOther = folder.includes('other');
+    const isBrand = folder.includes('brand');
+    const isCat = folder.includes('categor');
+    
+    let localPath;
+    if (isMain) localPath = './public/images/product/main/';
+    else if (isOther) localPath = './public/images/product/other/';
+    else if (isBrand) localPath = './public/images/brand/';
+    else if (isCat) localPath = './public/images/category/';
+    else localPath = './public/images/';
+    
+    await file.mv(localPath + image_name);
+    console.log('✓ Saved locally:', localPath + image_name);
+    return { name: image_name, isCloudinary: false };
 };
 
 const create = async (req, res) => {
