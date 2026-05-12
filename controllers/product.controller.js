@@ -500,9 +500,64 @@ const update = async (req, res) => {
 
 
 
+const getDealOfDay = async (req, res) => {
+    try {
+        const now = new Date();
+        const deal = await ProductModel.findOne({
+            'deal_of_day.is_deal': true,
+            'deal_of_day.deal_end_time': { $gt: now },
+            status: true,
+            stock: true
+        })
+        .populate([
+            { path: "category_id", select: "_id name slug" },
+            { path: "brand_id", select: "_id name slug" },
+            { path: "color_ids", select: "_id name slug color_code" }
+        ]);
+
+        if (!deal) {
+            return successResponse(res, "No active deal", { deal: null });
+        }
+
+        return successResponse(res, "Deal found", {
+            deal,
+            imageBaseUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/images/product/`
+        });
+    } catch (error) {
+        console.log("GET DEAL ERROR:", error);
+        return serverError_Response(res);
+    }
+};
+
+const updateDealOfDay = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { is_deal, deal_end_time, deal_discount_percent, total_stock_for_deal } = req.body;
+
+        const product = await ProductModel.findById(id);
+        if (!product) return notFound_Response(res);
+
+        await ProductModel.findByIdAndUpdate(id, {
+            $set: {
+                'deal_of_day.is_deal': is_deal ?? product.deal_of_day.is_deal,
+                'deal_of_day.deal_end_time': deal_end_time || product.deal_of_day.deal_end_time,
+                'deal_of_day.deal_discount_percent': deal_discount_percent ?? product.deal_of_day.deal_discount_percent,
+                'deal_of_day.total_stock_for_deal': total_stock_for_deal ?? product.deal_of_day.total_stock_for_deal,
+            }
+        });
+
+        return updatedResponse(res, "Deal updated successfully");
+    } catch (error) {
+        console.log("UPDATE DEAL ERROR:", error);
+        return serverError_Response(res);
+    }
+};
+
 module.exports = {
     create,
     getData,
+    getDealOfDay,
+    updateDealOfDay,
     add_images,
     statusUpdate,
     deleteById,

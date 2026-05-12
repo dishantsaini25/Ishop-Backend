@@ -89,6 +89,7 @@ server.use("/cart", require("./routers/cart.router.js"));
 server.use("/order", require("./routers/order.router.js"));
 server.use("/admin", require("./routers/admin.router.js"));
 server.use('/api', notificationRouter);
+server.use('/deals', require('./routers/deal.router'));
 
 // ==================== HEALTH CHECK ====================
 server.get('/health', (req, res) => {

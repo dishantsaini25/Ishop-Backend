@@ -59,6 +59,29 @@ const ProductSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    // ==================== DEAL OF THE DAY ====================
+    deal_of_day: {
+        is_deal: {
+            type: Boolean,
+            default: false
+        },
+        deal_end_time: {
+            type: Date,
+            default: null
+        },
+        deal_discount_percent: {
+            type: Number,
+            default: 0
+        },
+        sold_count: {
+            type: Number,
+            default: 0
+        },
+        total_stock_for_deal: {
+            type: Number,
+            default: 0
+        }
+    },
     other_images: [{
         type: String,
         default: []
