@@ -7,8 +7,9 @@ const fs = require("fs");
 const path = require("path");
 const productModel = require("../models/product.model");
 const BrandModel = require("../models/brand.model");
+const { uploadToCloudinary, deleteFromCloudinary } = require("../utils/cloudinary");
 
-// Ensure upload directories exist on startup
+// Ensure upload directories exist (for local dev)
 const ensureDirs = () => {
     const dirs = [
         "./public/images/product/main",
@@ -19,62 +20,59 @@ const ensureDirs = () => {
     dirs.forEach(dir => {
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
-            console.log("Created directory:", dir);
         }
     });
 };
 ensureDirs();
 
+// Helper: upload image - uses Cloudinary in production, local in dev
+const uploadImage = async (file, folder) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction || process.env.CLOUDINARY_CLOUD_NAME) {
+        // Upload to Cloudinary
+        const result = await uploadToCloudinary(file.data, folder);
+        return { name: result.url, isCloudinary: true, public_id: result.public_id };
+    } else {
+        // Save locally
+        const image_name = createUniqueName(file.name);
+        const localFolder = folder.includes('main') ? './public/images/product/main/' : './public/images/product/other/';
+        await file.mv(localFolder + image_name);
+        return { name: image_name, isCloudinary: false };
+    }
+};
+
 const create = async (req, res) => {
     try {
-        const thumbnail = req.files.thumbnail
-        const
-            { name, slug, description, original_price, discount_price, final_price, category_id, color_ids, brand_id } = req.body;
-        if (
-            !name ||
-            !slug ||
-            !thumbnail ||
-            !description ||
-            !discount_price ||
-            !original_price ||
-            !final_price ||
-            !category_id ||
-            !brand_id
-        ) {
+        if (!req.files || !req.files.thumbnail) {
+            return allFieldsResponse(res);
+        }
+        const thumbnail = req.files.thumbnail;
+        const { name, slug, description, original_price, discount_price, final_price, category_id, color_ids, brand_id } = req.body;
+
+        if (!name || !slug || !description || !discount_price || !original_price || !final_price || !category_id || !brand_id) {
             return allFieldsResponse(res);
         }
 
-        const product = await ProductModel.findOne({ slug });
-        if (product) return alreadyExist_Response(res);
-        const image = createUniqueName(thumbnail.name)
-        const destination = "./public/images/product/main/" + image;
-        thumbnail.mv(
-            destination,
-            async (err) => {
-                if (err) {
-                    return serverError_Response(res, "image not upload")
-                }
-                else {
-                    await ProductModel.create({
-                        name,
-                        slug,
-                        description,
-                        original_price,
-                        discount_price,
-                        final_price,
-                        category_id,
-                        color_ids: JSON.parse(color_ids),
-                        brand_id,
-                        thumbnail: image
-                    });
-                    return createdResponse(res);
-                }
-            })
+        const existing = await ProductModel.findOne({ slug });
+        if (existing) return alreadyExist_Response(res);
+
+        const uploaded = await uploadImage(thumbnail, 'ishop/products/main');
+
+        await ProductModel.create({
+            name, slug, description,
+            original_price, discount_price, final_price,
+            category_id, brand_id,
+            color_ids: color_ids ? JSON.parse(color_ids) : [],
+            thumbnail: uploaded.name,
+        });
+
+        return createdResponse(res);
     } catch (error) {
-        console.log(error);
+        console.error("Create product error:", error);
         return serverError_Response(res);
     }
-}
+};
 // const getData = async (req, res) => {
 //     try {
 //         const query = req.query;
@@ -332,7 +330,7 @@ const getData = async (req, res) => {
             currentPage: query.slug ? 1 : page,
             totalPages: query.slug ? 1 : Math.ceil(total / perPage),
             maxPrice,
-            imageBaseUrl: `${process.env.BACKEND_URL || 'http://localhost:5000'}/images/product/`
+            imageBaseUrl: process.env.CLOUDINARY_CLOUD_NAME ? "" : `${process.env.BACKEND_URL || 'http://localhost:5000'}/images/product/`
         });
 
     } catch (error) {
@@ -347,11 +345,8 @@ const add_images = async (req, res) => {
         console.log("Product ID:", req.params.id);
         console.log("Has files:", !!req.files);
         console.log("Files keys:", req.files ? Object.keys(req.files) : 'none');
-        console.log("Content-Type:", req.headers['content-type']);
 
-        // Check if files were uploaded
         if (!req.files || !req.files.other_images) {
-            console.log("No files found in request");
             return res.status(400).json({
                 success: false,
                 message: "No images uploaded. Please select at least one image."
@@ -366,10 +361,8 @@ const add_images = async (req, res) => {
         const other_images = [...product.other_images];
 
         const saveImage = async (img) => {
-            const image_name = createUniqueName(img.name);
-            const destination = "./public/images/product/other/" + image_name;
-            await img.mv(destination);
-            other_images.push(image_name);
+            const uploaded = await uploadImage(img, 'ishop/products/other');
+            other_images.push(uploaded.name);
         };
 
         if (Array.isArray(images)) {
@@ -506,10 +499,8 @@ const update = async (req, res) => {
 
         // Thumbnail update
         if (req.files?.thumbnail) {
-            const image = createUniqueName(req.files.thumbnail.name);
-            const destination = "./public/images/product/main/" + image;
-            await req.files.thumbnail.mv(destination);
-            updateData.thumbnail = image;
+            const uploaded = await uploadImage(req.files.thumbnail, 'ishop/products/main');
+            updateData.thumbnail = uploaded.name;
         }
 
         await ProductModel.findByIdAndUpdate(id, { $set: updateData });
